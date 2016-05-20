@@ -1,0 +1,11 @@
+build/Makefile
+build/CMakeFiles
+build/CMakeCache.txt
+build/cmake_install.cmake
+build/trieallocatorall
+build/.project
+build/.cproject
+*.swp
+build/libTlmTries.a
+src/tags
+tmp/

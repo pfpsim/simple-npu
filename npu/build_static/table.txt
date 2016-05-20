@@ -1,0 +1,18 @@
+## IPv4 LPM
+insert_entry ipv4_lpm 10.0.0.0/8 set_nhop 10.0.1.1    1
+insert_entry ipv4_lpm 10.0.1.2/32 set_nhop 10.0.1.2   2
+
+# forward
+insert_entry forward 10.0.1.1 set_dmac FF:FF:FF:FF:FF:01
+insert_entry forward 10.0.1.2 set_dmac BB:BB:BB:BB:BB:01
+
+# send_frame
+insert_entry send_frame 1'2 rewrite_mac AA:AA:AA:AA:AA:01
+insert_entry send_frame 2'2 rewrite_mac AA:AA:AA:AA:AA:02
+
+#tcp_rewrite_dst
+insert_entry tcp_rewrite_dst 10000'2 rewrite_tcp_dst 12358
+
+#tcp_rewrite_src
+insert_entry tcp_rewrite_dst 10000'2 rewrite_tcp_dst 12358
+
