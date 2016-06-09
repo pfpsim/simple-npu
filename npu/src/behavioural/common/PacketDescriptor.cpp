@@ -233,11 +233,16 @@ namespace {
     }
 
     pfp::core::DebugInfo::RawData raw_data() const override {
-      pfp::core::DebugInfo::RawData rd;
+      if (auto p = pd.lock()) {
 
-      rd.push_back(42);  // TODO(gordon)
+        // Get the P4 PHV object (pointer).
+        auto packet = p->header();
 
-      return rd;
+        return pfp::core::DebugInfo::RawData(packet->data(), packet->data() + packet->get_data_size());
+
+      } else {
+        return {};
+      }
      }
 
     bool valid() const override {
