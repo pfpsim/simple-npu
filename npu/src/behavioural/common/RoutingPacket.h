@@ -63,7 +63,6 @@ class AbstractRoutingPacket : public pfp::core::TrType {
     bool debuggable() const override{
       return false;
     }
-
 };
 
 /**
@@ -113,7 +112,7 @@ class RoutingPacket : public AbstractRoutingPacket {
       return "RoutingPacket";
     }
 
-    bool debuggable() const override{
+    bool debuggable() const override {
       return payload->debuggable();
     }
 
