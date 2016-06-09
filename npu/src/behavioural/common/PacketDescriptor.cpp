@@ -197,8 +197,11 @@ namespace {
 
         std::vector<pfp::core::DebugInfo::Header> headers;
 
-        // Get the P4 PHV object (pointer).
-        auto phv = p->header()->get_phv();
+        auto packet = p->header();
+        if (!packet) return {};
+
+        auto phv = packet->get_phv();
+        if (!phv) return {};
 
         auto it  = phv->header_begin();
         auto end = phv->header_end();
@@ -237,13 +240,36 @@ namespace {
 
         // Get the P4 PHV object (pointer).
         auto packet = p->header();
+        if (!packet) return {};
 
         return pfp::core::DebugInfo::RawData(packet->data(), packet->data() + packet->get_data_size());
 
       } else {
         return {};
       }
-     }
+    }
+
+    pfp::core::DebugInfo::RawData field_value(const std::string & field_name) const override {
+      if (auto p = pd.lock()) {
+
+        auto packet = p->header();
+        if (!packet) return {};
+
+        auto phv = packet->get_phv();
+        if (!phv) return {};
+
+        try {
+          auto field = phv->get_field(field_name).get_bytes();
+
+          return pfp::core::DebugInfo::RawData(field.begin(), field.end());
+        } catch( std::out_of_range & e) {
+          return {};
+        }
+
+      } else {
+        return {};
+      }
+    }
 
     bool valid() const override {
       return ! pd.expired();
