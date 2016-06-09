@@ -52,7 +52,8 @@ namespace bm {
 class Packet;
 }
 
-class PacketDescriptor: public pfp::core::PacketBase {
+class PacketDescriptor: public pfp::core::PacketBase,
+                        public std::enable_shared_from_this<PacketDescriptor> {
  public:
   typedef std::vector<char> raw_header_t;
   typedef std::shared_ptr<bm::Packet> header_t;
@@ -162,6 +163,11 @@ class PacketDescriptor: public pfp::core::PacketBase {
    */
   header_t& header();
   /**
+   * Get the header
+   * @return  Packet header
+   */
+  const header_t& header() const;
+  /**
    * Set the header
    * @param packet_header  Packet header
    * @return        True if the header was changed
@@ -182,6 +188,8 @@ class PacketDescriptor: public pfp::core::PacketBase {
   std::string data_type() const override;
 
   bool debuggable() const override;
+
+  std::shared_ptr<const pfp::core::DebugInfo> debug_info() const override;
 
  public:
   typedef int tlm_addr_;
