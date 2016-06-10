@@ -226,7 +226,7 @@ class PacketDescriptorDebugInfo : public pfp::core::DebugInfo {
             pfp::core::DebugInfo::Field(htype.get_field_name(i), data));
         }
 
-        headers.push_back(pfp::core::DebugInfo::Header(htype.get_name(),
+        headers.push_back(pfp::core::DebugInfo::Header(header.get_name(),
                                                        fields));
       }
 
