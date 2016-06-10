@@ -112,8 +112,12 @@ class RoutingPacket : public AbstractRoutingPacket {
       return "RoutingPacket";
     }
 
-    bool debuggable() const override{
+    bool debuggable() const override {
       return payload->debuggable();
+    }
+
+    std::shared_ptr<const pfp::core::DebugInfo> debug_info() const override {
+      return payload->debug_info();
     }
 };
 

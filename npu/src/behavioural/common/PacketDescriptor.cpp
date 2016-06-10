@@ -37,9 +37,12 @@
 
 
 #include "PacketDescriptor.h"
+
 #include <array>
 #include <algorithm>
 #include <string>
+#include <vector>
+
 #include "Packet.h"
 #include "P4.h"
 
@@ -161,6 +164,10 @@ PacketDescriptor::header_t& PacketDescriptor::header() {
   return packet_header_;
 }
 
+const PacketDescriptor::header_t& PacketDescriptor::header() const {
+  return packet_header_;
+}
+
 void PacketDescriptor::header(const PacketDescriptor::header_t& packet_header) {
   packet_header_ = packet_header;
 }
@@ -180,3 +187,104 @@ std::string PacketDescriptor::data_type() const {
 bool PacketDescriptor::debuggable() const {
   return true;
 }
+
+namespace {
+
+class PacketDescriptorDebugInfo : public pfp::core::DebugInfo {
+ public:
+  explicit PacketDescriptorDebugInfo(
+      std::shared_ptr<const PacketDescriptor> pd)
+    : pd(pd) {}
+
+  std::vector<pfp::core::DebugInfo::Header> parsed_data() const override {
+    if (auto p = pd.lock()) {
+      std::vector<pfp::core::DebugInfo::Header> headers;
+
+      auto packet = p->header();
+      if (!packet) return {};
+
+      auto phv = packet->get_phv();
+      if (!phv) return {};
+
+      auto it  = phv->header_begin();
+      auto end = phv->header_end();
+      for (; it != end; ++it) {
+        auto & header = *it;
+
+        if (!header.is_valid()) continue;
+
+        auto & htype = header.get_header_type();
+
+        std::vector<pfp::core::DebugInfo::Field> fields;
+
+        auto nfields = htype.get_num_fields();
+        for (int i = 0; i < nfields; ++i) {
+          auto & bytes = header.get_field(i).get_bytes();
+          std::vector<uint8_t> data(bytes.begin(), bytes.end());
+
+          fields.push_back(
+            pfp::core::DebugInfo::Field(htype.get_field_name(i), data));
+        }
+
+        headers.push_back(pfp::core::DebugInfo::Header(header.get_name(),
+                                                       fields));
+      }
+
+      return headers;
+
+    } else {
+      return {};
+    }
+  }
+
+  pfp::core::DebugInfo::RawData raw_data() const override {
+    if (auto p = pd.lock()) {
+      // Get the P4 PHV object (pointer).
+      auto packet = p->header();
+      if (!packet) return {};
+
+      return pfp::core::DebugInfo::RawData(
+               packet->data(), packet->data() + packet->get_data_size());
+
+    } else {
+      return {};
+    }
+  }
+
+  pfp::core::DebugInfo::RawData
+  field_value(const std::string & field_name) const override {
+    if (auto p = pd.lock()) {
+      auto packet = p->header();
+      if (!packet) return {};
+
+      auto phv = packet->get_phv();
+      if (!phv) return {};
+
+      try {
+        auto field = phv->get_field(field_name).get_bytes();
+
+        return pfp::core::DebugInfo::RawData(field.begin(), field.end());
+      } catch( std::out_of_range & e) {
+        return {};
+      }
+
+    } else {
+      return {};
+    }
+  }
+
+  bool valid() const override {
+    return !pd.expired();
+  }
+
+ private:
+  std::weak_ptr<const PacketDescriptor> pd;
+};
+
+}  // anonymous namespace
+
+std::shared_ptr<const pfp::core::DebugInfo>
+PacketDescriptor::debug_info() const {
+  return std::make_shared<PacketDescriptorDebugInfo>(shared_from_this());
+}
+
