@@ -41,7 +41,9 @@ ControlPlaneAgent::ControlPlaneAgent(sc_module_name nm,
                  std::string configfile)
   : ControlPlaneAgentSIM(nm, parent, configfile),
     table_name_mutex_(sc_gen_unique_name("mutex_")),
-    outlog(OUTPUTDIR+"ControlPlaneAgentTableAllocationTrace.csv") {
+    outlog(OUTPUTDIR+"ControlPlaneAgentTableAllocationTrace.csv"),
+    in_transaction(false)
+{
     /*sc_spawn threads*/
   sc_spawn(sc_bind(&ControlPlaneAgent::command_processing_thread, this));
 }
@@ -134,17 +136,58 @@ ControlPlaneAgent::process(pfp::cp::InsertCommand * cmd) {
       (bm::Data((const char *)b.data(), b.size()));
   }
 
-  // Insert the entry!
-  bm::entry_handle_t handle;
+  static bm::entry_handle_t handle;
+  if (!in_transaction) {
+    // Insert the entry!
+    auto p4 = P4::get("npu");
+    p4->lock.write_lock();
+    bm::MatchErrorCode rc = p4->mt_add_entry(0,
+          cmd->get_table_name(),  keys,
+          cmd->get_action().get_name(), action_data,
+          &handle);
+    p4->lock.write_unlock();
+
+    return cmd->success_result(handle);
+  } else {
+    // Record the info of the insert for when we complete this transaction
+    auto & table = cmd->get_table_name();
+    transaction[table].keys.push_back(keys);
+    transaction[table].actions.push_back(cmd->get_action().get_name());
+    transaction[table].action_data.push_back(action_data);
+    transaction[table].handles.push_back(&handle);  // TODO(gordon)
+
+    return nullptr;
+  }
+}
+
+std::shared_ptr<pfp::cp::CommandResult>
+ControlPlaneAgent::process(pfp::cp::BeginTransactionCommand *cmd) {
+  in_transaction = true;
+
+  return nullptr;
+}
+
+std::shared_ptr<pfp::cp::CommandResult>
+ControlPlaneAgent::process(pfp::cp::EndTransactionCommand *cmd) {
+  assert(in_transaction);
+  in_transaction = false;
+
   auto p4 = P4::get("npu");
   p4->lock.write_lock();
-  bm::MatchErrorCode rc = p4->mt_add_entry(0,
-        cmd->get_table_name(),  keys,
-        cmd->get_action().get_name(), action_data,
-        &handle);
+
+  for (auto & kv : transaction) {
+    auto & table = kv.first;
+    auto & trans = kv.second;
+
+    bm::MatchErrorCode rc = p4->mt_add_entry(0,
+          table,  trans.keys,
+          trans.actions, trans.action_data,
+          trans.handles);
+  }
+
   p4->lock.write_unlock();
 
-  return cmd->success_result(handle);
+  return nullptr;  //cmd->success_result();  // TODO(gordon)
 }
 
 std::shared_ptr<pfp::cp::CommandResult>
@@ -152,6 +195,7 @@ ControlPlaneAgent::process(pfp::cp::ModifyCommand *cmd) {
   cout << "Modify Command at ControlPlaneAgent" << endl;
   return cmd->success_result();
 }
+
 std::shared_ptr<pfp::cp::CommandResult>
 ControlPlaneAgent::process(pfp::cp::DeleteCommand *cmd) {
   cout << "Delete Command at ControlPlaneAgent" << endl;

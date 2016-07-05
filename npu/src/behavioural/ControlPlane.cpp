@@ -147,8 +147,19 @@ ControlPlane::process(pfp::cp::DeleteCommand *cmd) {
   deleteTableEntry(cmd->get_table_name(), cmd->get_handle());
   return nullptr;
 }
+
 std::shared_ptr<pfp::cp::CommandResult>
 ControlPlane::process(pfp::cp::BootCompleteCommand*) {
+  return nullptr;
+}
+
+std::shared_ptr<pfp::cp::CommandResult>
+ControlPlane::process(pfp::cp::BeginTransactionCommand *cmd) {
+  return nullptr;
+}
+
+std::shared_ptr<pfp::cp::CommandResult>
+ControlPlane::process(pfp::cp::EndTransactionCommand *cmd) {
   return nullptr;
 }
 
