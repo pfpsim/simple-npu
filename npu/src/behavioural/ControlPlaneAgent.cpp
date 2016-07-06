@@ -42,8 +42,7 @@ ControlPlaneAgent::ControlPlaneAgent(sc_module_name nm,
   : ControlPlaneAgentSIM(nm, parent, configfile),
     table_name_mutex_(sc_gen_unique_name("mutex_")),
     outlog(OUTPUTDIR+"ControlPlaneAgentTableAllocationTrace.csv"),
-    in_transaction(false)
-{
+    in_transaction(false) {
     /*sc_spawn threads*/
   sc_spawn(sc_bind(&ControlPlaneAgent::command_processing_thread, this));
 }
@@ -117,33 +116,40 @@ bm::MatchKeyParam to_p4_key(const pfp::cp::MatchKey * k) {
   }
 }
 
-}  // end anonymous namespace
-
-std::shared_ptr<pfp::cp::CommandResult>
-ControlPlaneAgent::process(pfp::cp::InsertCommand * cmd) {
-  cout << "Insert Command at ControlPlaneAgent" << endl;
-
+std::vector<bm::MatchKeyParam>
+build_p4_keys(const pfp::cp::InsertCommand * cmd) {
   // Convert all of the match keys
   std::vector<bm::MatchKeyParam> keys;
   for (const auto & key : cmd->get_keys()) {
     keys.push_back(to_p4_key(key.get()));
   }
+  return keys;
+}
 
+bm::ActionData build_p4_action_data(const pfp::cp::InsertCommand * cmd) {
   // Convert all of the action parameters
   bm::ActionData action_data;
   for (const pfp::cp::Bytes & b : cmd->get_action().get_params()) {
     action_data.push_back_action_data
       (bm::Data((const char *)b.data(), b.size()));
   }
+  return action_data;
+}
 
-  static bm::entry_handle_t handle;
+}  // end anonymous namespace
+
+std::shared_ptr<pfp::cp::CommandResult>
+ControlPlaneAgent::process(pfp::cp::InsertCommand * cmd) {
+  cout << "Insert Command at ControlPlaneAgent" << endl;
+
   if (!in_transaction) {
+    bm::entry_handle_t handle;
     // Insert the entry!
     auto p4 = P4::get("npu");
     p4->lock.write_lock();
     bm::MatchErrorCode rc = p4->mt_add_entry(0,
-          cmd->get_table_name(),  keys,
-          cmd->get_action().get_name(), action_data,
+          cmd->get_table_name(),  build_p4_keys(cmd),
+          cmd->get_action().get_name(), build_p4_action_data(cmd),
           &handle);
     p4->lock.write_unlock();
 
@@ -151,10 +157,9 @@ ControlPlaneAgent::process(pfp::cp::InsertCommand * cmd) {
   } else {
     // Record the info of the insert for when we complete this transaction
     auto & table = cmd->get_table_name();
-    transaction[table].keys.push_back(keys);
-    transaction[table].actions.push_back(cmd->get_action().get_name());
-    transaction[table].action_data.push_back(action_data);
-    transaction[table].handles.push_back(&handle);  // TODO(gordon)
+    transaction[table].push_back(
+      std::static_pointer_cast<pfp::cp::InsertCommand>(
+        cmd->shared_from_this()));
 
     return nullptr;
   }
@@ -175,19 +180,40 @@ ControlPlaneAgent::process(pfp::cp::EndTransactionCommand *cmd) {
   auto p4 = P4::get("npu");
   p4->lock.write_lock();
 
+  // The result object
+  auto res = std::make_shared<pfp::cp::MultiResult>();
+
   for (auto & kv : transaction) {
     auto & table = kv.first;
     auto & trans = kv.second;
 
+    std::vector<std::vector<bm::MatchKeyParam> > keys;
+    std::vector<std::string> actions;
+    std::vector<bm::ActionData> action_data;
+    std::vector<bm::entry_handle_t*> handles;
+
+    for (const auto & cmd : trans) {
+      keys.push_back(build_p4_keys(cmd.get()));
+      actions.push_back(cmd->get_action().get_name());
+      action_data.push_back(build_p4_action_data(cmd.get()));
+
+      auto result = std::make_shared<pfp::cp::InsertResult>(cmd, 100);
+
+      // Create the result object which holds the handle to the inserted entry
+      res->results.push_back(result);
+
+      // Push back a reference to the handle in the result object so it can be
+      // updated during the insert operation
+      handles.push_back(&result->handle);
+    }
+
     bm::MatchErrorCode rc = p4->mt_add_entry(0,
-          table,  trans.keys,
-          trans.actions, trans.action_data,
-          trans.handles);
+      table, keys, actions, action_data, handles);
   }
 
   p4->lock.write_unlock();
 
-  return nullptr;  //cmd->success_result();  // TODO(gordon)
+  return res;
 }
 
 std::shared_ptr<pfp::cp::CommandResult>

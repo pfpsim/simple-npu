@@ -116,21 +116,13 @@ class ControlPlaneAgent:
   //! ostream for logging to file
   std::ofstream outlog;
 
-  //! Holds all currently queued insert operations for a transaction
-  struct TransactionInfo {
-    std::vector<std::vector<bm::MatchKeyParam> > keys;
-    std::vector<std::string> actions;
-    std::vector<bm::ActionData> action_data;
-    std::vector<bm::entry_handle_t*> handles;
-  };
-
   //! Holds all of the information for all of the current transactions,
   //! Organized by table
-  std::map<std::string, TransactionInfo> transaction;
+  std::map<std::string, std::vector<std::shared_ptr<pfp::cp::InsertCommand>>>
+  transaction;
 
   //! Indicated that we're currently inside a transaction
   bool in_transaction;
-
 };
 
 #endif  // BEHAVIOURAL_CONTROLPLANEAGENT_H_
