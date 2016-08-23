@@ -39,6 +39,7 @@ except ImportError:
   from urllib2 import urlopen, Request
 
 import json
+import re
 from sys import argv, exit
 
 if len(argv) != 3:
@@ -49,10 +50,11 @@ if len(argv) != 3:
 tag_name   = argv[1]
 
 cxx = argv[2]
-plus_idx = cxx.find('+')
-if plus_idx >= 0:
-    cxx = cxx[0:plus_idx]
 deb_suffix = '-' + cxx + '.deb'
+# This mimics the processing that github does to names containing pluses
+#   g++.deb     -> g.deb
+#   g++-4.8.deb -> g.-4.8.deb
+deb_suffix = re.sub('\++\.*', '.', deb_suffix)
 
 r = Request("https://api.github.com/repos/pfpsim/PFPSim/releases/tags/" + tag_name)
 

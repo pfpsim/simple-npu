@@ -36,6 +36,7 @@
 #include "../structural/ControlPlaneAgentSIM.h"
 #include "pfpsim/core/cp/Commands.h"
 #include "common/PacketDescriptor.h"
+#include "common/P4.h"
 
 
 class ControlPlaneAgent:
@@ -62,6 +63,10 @@ class ControlPlaneAgent:
       process(pfp::cp::DeleteCommand*) override;
   std::shared_ptr<pfp::cp::CommandResult>
       process(pfp::cp::BootCompleteCommand*) override;
+  std::shared_ptr<pfp::cp::CommandResult>
+      process(pfp::cp::BeginTransactionCommand*) override;
+  std::shared_ptr<pfp::cp::CommandResult>
+      process(pfp::cp::EndTransactionCommand*) override;
 
   void command_processing_thread();
 
@@ -110,6 +115,14 @@ class ControlPlaneAgent:
   sc_mutex table_name_mutex_;
   //! ostream for logging to file
   std::ofstream outlog;
+
+  //! Holds all of the information for all of the current transactions,
+  //! Organized by table
+  std::map<std::string, std::vector<std::shared_ptr<pfp::cp::InsertCommand>>>
+  transaction;
+
+  //! Indicated that we're currently inside a transaction
+  bool in_transaction;
 };
 
 #endif  // BEHAVIOURAL_CONTROLPLANEAGENT_H_

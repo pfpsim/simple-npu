@@ -2,9 +2,12 @@ sudo: required
 
 language: cpp
 
-compiler:
-  - clang
-  - gcc
+matrix:
+  include:
+    - env: COMPILER=g++-4.8
+    # TODO(gordon) temporarily disabled (see travis build #24.2)
+    #- env: COMPILER=g++-5
+    - env: COMPILER=clang++-3.5
 
 before_install:
   # Before doing anything else, let's be sure that the code at least has good style.
@@ -13,7 +16,13 @@ before_install:
   # Ok, now we can do all the rest of installing dependencies and whatnot
   - sudo cp /etc/apt/sources.list /etc/apt/sources.list.d/trusty.list
   - sudo sed -i 's/precise/trusty/g' /etc/apt/sources.list.d/trusty.list
+  - if [[ $COMPILER == g++-5       ]]; then sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y; fi
   - sudo apt-get update -qq -y
+  - if [[ $COMPILER == g++-4.8     ]]; then sudo apt-get install -q -y g++-4.8;     fi
+  - if [[ $COMPILER == g++-5       ]]; then sudo apt-get install -q -y g++-5;       fi
+  - if [[ $COMPILER == clang++-3.5 ]]; then sudo apt-get install -q -y clang++-3.5; fi
+  - sudo apt-get install -qq -y --force-yes libprotobuf-dev
+  - export CXX=$COMPILER
   # P4 dependencies
   - sudo apt-get install -q -y libjudy-dev
                                libgmp-dev
@@ -25,10 +34,6 @@ before_install:
                                libboost-filesystem-dev
                                libboost-thread-dev
                                libevent-dev
-  # Install a modern version of gcc and libstdc++
-  - if [ "$CXX" = "clang++" ]; then sudo apt-get install -y -qq libprotobuf-dev libstdc++-4.8-dev; fi
-  - if [ "$CXX" = "g++" ];     then sudo apt-get install -y -qq libprotobuf-dev g++-4.8; fi
-  - if [ "$CXX" = "g++" ];     then export CXX="g++-4.8" CC="gcc-4.8"; fi
   # Install SystemC
   - wget http://www.accellera.org/images/downloads/standards/systemc/systemc-2.3.1.tgz
   - tar -xzf systemc-2.3.1.tgz
@@ -46,7 +51,7 @@ before_install:
   - sudo make install
   - cd ..
   # Install PFPSim core and PFP-P4
-  - .travis/get-PFPSim.py "v1.1.0" "$CXX"
+  - .travis/get-PFPSim.py "v1.3.0" "$CXX"
   - sudo dpkg -i pfpsim*.deb
   # Install pfpgen
   - .travis/get-pfpgen.py "v1.0.0"
