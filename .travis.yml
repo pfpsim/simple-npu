@@ -46,7 +46,7 @@ before_install:
   - sudo make install
   - cd ..
   # Install PFPSim core and PFP-P4
-  - .travis/get-PFPSim.py "v1.2.0" "$CXX"
+  - .travis/get-PFPSim.py "v1.3.0" "$CXX"
   - sudo dpkg -i pfpsim*.deb
   # Install pfpgen
   - .travis/get-pfpgen.py "v1.0.0"
