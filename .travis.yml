@@ -5,7 +5,8 @@ language: cpp
 matrix:
   include:
     - env: COMPILER=g++-4.8
-    - env: COMPILER=g++-5
+    # TODO(gordon) temporarily disabled (see travis build #24.2)
+    #- env: COMPILER=g++-5
     - env: COMPILER=clang++-3.5
 
 before_install:
