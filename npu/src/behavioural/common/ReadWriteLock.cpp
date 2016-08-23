@@ -35,6 +35,7 @@
 #include <string>
 #include "pfpsim/pfpsim.h"
 
+// NOLINTNEXTLINE(runtime/string)
 static std::string module_name_ = "RW Lock";  // HACK FOR npulog
 using std::cout;
 using std::endl;

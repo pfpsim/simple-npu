@@ -52,7 +52,9 @@
 
 
 typedef HalS HALInterface;
-std::string tlmvar::module_name_ = "TLMVAR";
+
+// NOLINTNEXTLINE(runtime/string)
+std::string tlmvar::module_name_ = "TLMVAR";  // hack for npulog
 
 tlmvar::tlmvar() {
 }
